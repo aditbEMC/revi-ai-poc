@@ -2,6 +2,7 @@ import streamlit as st
 import boto3
 import os
 import uuid
+import re
 
 # Configure AWS credentials using environment variables
 os.environ['AWS_ACCESS_KEY_ID'] = st.secrets['AWS_ACCESS_KEY_ID']
@@ -191,5 +192,32 @@ if st.button("Submit"):
         chunk = event["chunk"]
         completion3 += chunk["bytes"].decode()
 
+    # Below part needs to be probably put in Lambda function as a post processing function in the bedrock agent
+
+    result1 = completion1.split('2. CLIENT COMPLETES LAST CREDIT OF ANY CLASS PACKAGE')
+    result2 = result1[1].split('3. CLIENT COMPLETES SINGLE CLASS CREDIT')
+
+    result3 = completion2.split('5. LEAD ATTENDS FIRST CLASS USING INTRO OFFER')
+    result4 = result3[1].split('6. LEAD CLAIMS INTRO OFFER')
+
+    result5 = completion3.split('8. LEAD CREATED')
+    result6 = result5[1].split('9. LEAD CONVERTS TO LOWER OR MIDDLE TIER MEMBERSHIP')
+    result7 = result6[1].split('10. LEADS ATTENDS FIRST CLASS USING DROP IN CREDIT FLOW')
+
     # Display the combined text
-    st.write(completion1+"\n\n"+ completion2 + "\n\n" + completion3)
+
+    try:
+        st.write(
+            result1[0] + "\n\n" + "2. CLIENT COMPLETES LAST CREDIT OF ANY CLASS PACKAGE" + "\n\n" + result2[0] + "\n\n" + "3. CLIENT COMPLETES SINGLE CLASS CREDIT" + "\n\n" + result2[1]
+        )
+
+        st.write(
+            result3[0] + "\n\n" + "5. LEAD ATTENDS FIRST CLASS USING INTRO OFFER" + "\n\n" + result4[0] + "\n\n" + "6. LEAD CLAIMS INTRO OFFER" + "\n\n" + result4[1]
+        )
+
+        st.write(
+            result5[0] + "\n\n" + "8. LEAD CREATED" + "\n\n" + result6[0] + "\n\n" + "9. LEAD CONVERTS TO LOWER OR MIDDLE TIER MEMBERSHIP" + "\n\n" + result7[0] + "\n\n" + "10. LEADS ATTENDS FIRST CLASS USING DROP IN CREDIT FLOW" + result7[1]
+        )
+    
+    except:
+        st.write(completion1+"\n\n"+ completion2 + "\n\n" + completion3)

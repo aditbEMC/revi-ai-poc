@@ -2,7 +2,9 @@ import streamlit as st
 import boto3
 import os
 import uuid
-import re
+import time
+
+from concurrent.futures import ThreadPoolExecutor
 
 # Configure AWS credentials using environment variables
 os.environ['AWS_ACCESS_KEY_ID'] = st.secrets['AWS_ACCESS_KEY_ID']
@@ -14,9 +16,9 @@ prePrompt13 = """
 
     I want to generate detailed drip campaigns named below
 
-    1) MISSED FIRST CLASS
-    2) CLIENT COMPLETES LAST CREDIT OF ANY CLASS PACKAGE 
-    3) CLIENT COMPLETES SINGLE CLASS CREDIT
+    1. MISSED FIRST CLASS
+    2. CLIENT COMPLETES LAST CREDIT OF ANY CLASS PACKAGE 
+    3. CLIENT COMPLETES SINGLE CLASS CREDIT
       
     You are going to generate the campaigns based on the questionnaire provided below.
 
@@ -28,9 +30,9 @@ prePrompt46 = """
 
     I want to generate detailed drip campaigns named as below
 
-    4) FIRST CLASS REMINDER
-    5) LEAD ATTENDS FIRST CLASS USING INTRO OFFER
-    6) LEAD CLAIMS INTRO OFFER
+    4. FIRST CLASS REMINDER
+    5. LEAD ATTENDS FIRST CLASS USING INTRO OFFER
+    6. LEAD CLAIMS INTRO OFFER
       
     You are going to generate the campaigns based on the questionnaire provided below.
 
@@ -42,16 +44,18 @@ prePrompt710 = """
 
     I want to generate detailed drip campaigns named as below
 
-    7) LEAD CONVERTS TO HIGHEST TIERED MEMBERSHIP
-    8) LEAD CREATED
-    9) LEAD CREATES TO LOWER OR MIDDLE TIER MEMBERSHIP
-    10) LEADS ATTENDS FIRST CLASS USING DROP IN CREDIT FLOW
+    7. LEAD CONVERTS TO HIGHEST TIERED MEMBERSHIP
+    8. LEAD CREATED
+    9. LEAD CREATES TO LOWER OR MIDDLE TIER MEMBERSHIP
+    10. LEADS ATTENDS FIRST CLASS USING DROP IN CREDIT FLOW
       
     You are going to generate the campaigns based on the questionnaire provided below.
 
     Here is the questionaire and its answers
     
     """
+
+prompts = [prePrompt13, prePrompt46, prePrompt710]
 
 # Title of the app
 st.title("Business Questionnaire Form")
@@ -152,68 +156,67 @@ if st.button("Submit"):
     agent_id = st.secrets["AGENT_ID"]
     agent_alias_id = st.secrets["AGENT_ALIAS_ID"]
 
-    # Call the Bedrock model via runtime endpoint
-    response1 = bedrock_runtime_client.invoke_agent(
-        agentId = agent_id,     # Your specific agent ID
-        agentAliasId = agent_alias_id, # agent alias ID
-        inputText = prePrompt13 + submitted_text,      # The input text or data
-        sessionId = uuid.uuid4().hex
-    )
-
-    # Parse and print the response from the model
-    completion1 = ""
-    for event in response1.get("completion"):
-        chunk = event["chunk"]
-        completion1 += chunk["bytes"].decode()
-
-    response2 = bedrock_runtime_client.invoke_agent(
-        agentId = agent_id,     # Your specific agent ID
-        agentAliasId = agent_alias_id, # agent alias ID
-        inputText = prePrompt46 + submitted_text,      # The input text or data
-        sessionId = uuid.uuid4().hex
-    )
-
-    # Parse and print the response from the model
-    completion2 = ""
-    for event in response2.get("completion"):
-        chunk = event["chunk"]
-        completion2 += chunk["bytes"].decode()
-
-    response3 = bedrock_runtime_client.invoke_agent(
-        agentId = agent_id,     # Your specific agent ID
-        agentAliasId = agent_alias_id, # agent alias ID
-        inputText = prePrompt710 + submitted_text,      # The input text or data
-        sessionId = uuid.uuid4().hex
-    )
-
-    # Parse and print the response from the model
-    completion3 = ""
-    for event in response3.get("completion"):
-        chunk = event["chunk"]
-        completion3 += chunk["bytes"].decode()
-
-    # Below part needs to be probably put in Lambda function as a post processing function in the bedrock agent
-
-    result1 = completion1.split('2. CLIENT COMPLETES LAST CREDIT OF ANY CLASS PACKAGE')
-    result2 = result1[1].split('3. CLIENT COMPLETES SINGLE CLASS CREDIT')
-
-    result3 = completion2.split('5. LEAD ATTENDS FIRST CLASS USING INTRO OFFER')
-    result4 = result3[1].split('6. LEAD CLAIMS INTRO OFFER')
-
-    result5 = completion3.split('8. LEAD CREATED')
-    result6 = result5[1].split('9. LEAD CONVERTS TO LOWER OR MIDDLE TIER MEMBERSHIP')
-    result7 = result6[1].split('10. LEADS ATTENDS FIRST CLASS USING DROP IN CREDIT FLOW')
-
     # Display the combined text
 
     try:
+
+        # Below part needs to be probably put in Lambda function as a post processing function in the bedrock agent
+        response1 = bedrock_runtime_client.invoke_agent(
+            agentId = agent_id,     # Your specific agent ID
+            agentAliasId = agent_alias_id, # agent alias ID
+            inputText = prePrompt13 + submitted_text,      # The input text or data
+            sessionId = uuid.uuid4().hex
+        )
+
+        # Parse and print the response from the model
+        completion1 = ""
+        for event in response1.get("completion"):
+            chunk = event["chunk"]
+            completion1 += chunk["bytes"].decode()
+
+        result1 = completion1.split('2. CLIENT COMPLETES LAST CREDIT OF ANY CLASS PACKAGE')
+        result2 = result1[1].split('3. CLIENT COMPLETES SINGLE CLASS CREDIT')
+
         st.write(
             result1[0] + "\n\n" + "2. CLIENT COMPLETES LAST CREDIT OF ANY CLASS PACKAGE" + "\n\n" + result2[0] + "\n\n" + "3. CLIENT COMPLETES SINGLE CLASS CREDIT" + "\n\n" + result2[1]
         )
 
+        response2 = bedrock_runtime_client.invoke_agent(
+            agentId = agent_id,     # Your specific agent ID
+            agentAliasId = agent_alias_id, # agent alias ID
+            inputText = prePrompt46 + submitted_text,      # The input text or data
+            sessionId = uuid.uuid4().hex
+        )
+
+        # Parse and print the response from the model
+        completion2 = ""
+        for event in response2.get("completion"):
+            chunk = event["chunk"]
+            completion2 += chunk["bytes"].decode()
+
+        result3 = completion2.split('5. LEAD ATTENDS FIRST CLASS USING INTRO OFFER')
+        result4 = result3[1].split('6. LEAD CLAIMS INTRO OFFER')
+
         st.write(
             result3[0] + "\n\n" + "5. LEAD ATTENDS FIRST CLASS USING INTRO OFFER" + "\n\n" + result4[0] + "\n\n" + "6. LEAD CLAIMS INTRO OFFER" + "\n\n" + result4[1]
         )
+
+        response3 = bedrock_runtime_client.invoke_agent(
+            agentId = agent_id,     # Your specific agent ID
+            agentAliasId = agent_alias_id, # agent alias ID
+            inputText = prePrompt710 + submitted_text,      # The input text or data
+            sessionId = uuid.uuid4().hex
+        )
+
+        # Parse and print the response from the model
+        completion3 = ""
+        for event in response3.get("completion"):
+            chunk = event["chunk"]
+            completion3 += chunk["bytes"].decode()
+
+        result5 = completion3.split('8. LEAD CREATED')
+        result6 = result5[1].split('9. LEAD CONVERTS TO LOWER OR MIDDLE TIER MEMBERSHIP')
+        result7 = result6[1].split('10. LEADS ATTENDS FIRST CLASS USING DROP IN CREDIT FLOW')
 
         st.write(
             result5[0] + "\n\n" + "8. LEAD CREATED" + "\n\n" + result6[0] + "\n\n" + "9. LEAD CONVERTS TO LOWER OR MIDDLE TIER MEMBERSHIP" + "\n\n" + result7[0] + "\n\n" + "10. LEADS ATTENDS FIRST CLASS USING DROP IN CREDIT FLOW" + result7[1]

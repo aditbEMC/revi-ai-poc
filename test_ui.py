@@ -2,8 +2,7 @@ import streamlit as st
 import boto3
 import os
 import uuid
-import time
-
+import threading
 from concurrent.futures import ThreadPoolExecutor
 
 # Configure AWS credentials using environment variables
@@ -11,14 +10,17 @@ os.environ['AWS_ACCESS_KEY_ID'] = st.secrets['AWS_ACCESS_KEY_ID']
 os.environ['AWS_SECRET_ACCESS_KEY'] = st.secrets['AWS_SECRET_ACCESS_KEY']
 os.environ['AWS_DEFAULT_REGION'] = st.secrets['AWS_DEFAULT_REGION']
 
-# Prompt Prefix
-prePrompt13 = """
+# Pre Prompts
+
+prePrompt15 = """
 
     I want to generate detailed drip campaigns named below
 
     1. MISSED FIRST CLASS
     2. CLIENT COMPLETES LAST CREDIT OF ANY CLASS PACKAGE 
     3. CLIENT COMPLETES SINGLE CLASS CREDIT
+    4. FIRST CLASS REMINDER
+    5. LEAD ATTENDS FIRST CLASS USING INTRO OFFER
       
     You are going to generate the campaigns based on the questionnaire provided below.
 
@@ -26,24 +28,11 @@ prePrompt13 = """
     
     """
 
-prePrompt46 = """
+prePrompt610 = """
 
     I want to generate detailed drip campaigns named as below
 
-    4. FIRST CLASS REMINDER
-    5. LEAD ATTENDS FIRST CLASS USING INTRO OFFER
     6. LEAD CLAIMS INTRO OFFER
-      
-    You are going to generate the campaigns based on the questionnaire provided below.
-
-    Here is the questionaire and its answers
-     
-    """
-
-prePrompt710 = """
-
-    I want to generate detailed drip campaigns named as below
-
     7. LEAD CONVERTS TO HIGHEST TIERED MEMBERSHIP
     8. LEAD CREATED
     9. LEAD CREATES TO LOWER OR MIDDLE TIER MEMBERSHIP
@@ -52,10 +41,11 @@ prePrompt710 = """
     You are going to generate the campaigns based on the questionnaire provided below.
 
     Here is the questionaire and its answers
-    
+     
     """
 
-prompts = [prePrompt13, prePrompt46, prePrompt710]
+#prompts = [prePrompt13, prePrompt46, prePrompt710]
+prompts = [prePrompt15, prePrompt610]
 
 # Title of the app
 st.title("Business Questionnaire Form")
@@ -156,71 +146,76 @@ if st.button("Submit"):
     agent_id = st.secrets["AGENT_ID"]
     agent_alias_id = st.secrets["AGENT_ALIAS_ID"]
 
-    # Display the combined text
+    def invoke_agent(submitted_text):
+        response = bedrock_runtime_client.invoke_agent(
+            agentId=agent_id,
+            agentAliasId=agent_alias_id,
+            inputText=submitted_text,
+            sessionId=uuid.uuid4().hex
+        )
+        return response
+    
+    with ThreadPoolExecutor(max_workers=1) as executor:
+        futures = [executor.submit(invoke_agent, text + submitted_text) for text in prompts]
+        results = [future.result() for future in futures]
+
+    #response1, response2, response3 = results
+    response1, response2 = results
+
+    #st.write(response1, response2, response3)
+    #st.write(response1, response2)
+
+    completions = {}
 
     try:
 
-        # Below part needs to be probably put in Lambda function as a post processing function in the bedrock agent
-        response1 = bedrock_runtime_client.invoke_agent(
-            agentId = agent_id,     # Your specific agent ID
-            agentAliasId = agent_alias_id, # agent alias ID
-            inputText = prePrompt13 + submitted_text,      # The input text or data
-            sessionId = uuid.uuid4().hex
-        )
+        def process_completion(response, completion_key):
+            completion_text = ""
+            for event in response.get("completion"):
+                chunk = event["chunk"]
+                completion_text += chunk["bytes"].decode()
+            completions[completion_key] = completion_text
 
-        # Parse and print the response from the model
-        completion1 = ""
-        for event in response1.get("completion"):
-            chunk = event["chunk"]
-            completion1 += chunk["bytes"].decode()
+        # Create threads for each response
+        thread1 = threading.Thread(target=process_completion, args=(response1, 'completion1'))
+        thread2 = threading.Thread(target=process_completion, args=(response2, 'completion2'))
+
+        # start both threads simultaneously
+        thread1.start()
+        thread2.start()
+
+        # Wait for both threads to finish
+        thread1.join()
+        thread2.join()
+
+        completion1 = completions.get('completion1')
+        completion2 = completions.get('completion2')
 
         result1 = completion1.split('2. CLIENT COMPLETES LAST CREDIT OF ANY CLASS PACKAGE')
         result2 = result1[1].split('3. CLIENT COMPLETES SINGLE CLASS CREDIT')
+        result3 = result2[1].split('4. FIRST CLASS REMINDER')
+        result4 = result3[1].split('5. LEAD ATTENDS FIRST CLASS USING INTRO OFFER')
 
         st.write(
-            result1[0] + "\n\n" + "2. CLIENT COMPLETES LAST CREDIT OF ANY CLASS PACKAGE" + "\n\n" + result2[0] + "\n\n" + "3. CLIENT COMPLETES SINGLE CLASS CREDIT" + "\n\n" + result2[1]
+            result1[0] + "\n\n" + "2. CLIENT COMPLETES LAST CREDIT OF ANY CLASS PACKAGE" + "\n\n" + 
+            result2[0] + "\n\n" + "3. CLIENT COMPLETES SINGLE CLASS CREDIT" + "\n\n" + 
+            result3[0] + "\n\n" + "4. FIRST CLASS REMINDER" + "\n\n" +
+            result4[0] + "\n\n" + "5. LEAD ATTENDS FIRST CLASS USING INTRO OFFER" + "\n\n" +
+            result4[1]
         )
 
-        response2 = bedrock_runtime_client.invoke_agent(
-            agentId = agent_id,     # Your specific agent ID
-            agentAliasId = agent_alias_id, # agent alias ID
-            inputText = prePrompt46 + submitted_text,      # The input text or data
-            sessionId = uuid.uuid4().hex
-        )
-
-        # Parse and print the response from the model
-        completion2 = ""
-        for event in response2.get("completion"):
-            chunk = event["chunk"]
-            completion2 += chunk["bytes"].decode()
-
-        result3 = completion2.split('5. LEAD ATTENDS FIRST CLASS USING INTRO OFFER')
-        result4 = result3[1].split('6. LEAD CLAIMS INTRO OFFER')
+        result5 = completion2.split('7. LEAD CONVERTS TO HIGHEST TIERED MEMBERSHIP')
+        result6 = result5[1].split('8. LEAD CREATED')
+        result7 = result6[1].split('9. LEAD CONVERTS TO LOWER OR MIDDLE TIER MEMBERSHIP')
+        result8 = result7[1].split('10. LEADS ATTENDS FIRST CLASS USING DROP IN CREDIT FLOW')
 
         st.write(
-            result3[0] + "\n\n" + "5. LEAD ATTENDS FIRST CLASS USING INTRO OFFER" + "\n\n" + result4[0] + "\n\n" + "6. LEAD CLAIMS INTRO OFFER" + "\n\n" + result4[1]
+            result5[0] + "\n\n" + "7. LEAD CONVERTS TO HIGHEST TIERED MEMBERSHIP" + "\n\n" + 
+            result6[0] + "\n\n" + "8. LEAD CREATED" + "\n\n" + 
+            result7[0] + "\n\n" + "9. LEAD CONVERTS TO LOWER OR MIDDLE TIER MEMBERSHIP" + "\n\n" +
+            result8[0] + "\n\n" + "10. LEADS ATTENDS FIRST CLASS USING DROP IN CREDIT FLOW" + "\n\n" +
+            result8[1]
         )
 
-        response3 = bedrock_runtime_client.invoke_agent(
-            agentId = agent_id,     # Your specific agent ID
-            agentAliasId = agent_alias_id, # agent alias ID
-            inputText = prePrompt710 + submitted_text,      # The input text or data
-            sessionId = uuid.uuid4().hex
-        )
-
-        # Parse and print the response from the model
-        completion3 = ""
-        for event in response3.get("completion"):
-            chunk = event["chunk"]
-            completion3 += chunk["bytes"].decode()
-
-        result5 = completion3.split('8. LEAD CREATED')
-        result6 = result5[1].split('9. LEAD CONVERTS TO LOWER OR MIDDLE TIER MEMBERSHIP')
-        result7 = result6[1].split('10. LEADS ATTENDS FIRST CLASS USING DROP IN CREDIT FLOW')
-
-        st.write(
-            result5[0] + "\n\n" + "8. LEAD CREATED" + "\n\n" + result6[0] + "\n\n" + "9. LEAD CONVERTS TO LOWER OR MIDDLE TIER MEMBERSHIP" + "\n\n" + result7[0] + "\n\n" + "10. LEADS ATTENDS FIRST CLASS USING DROP IN CREDIT FLOW" + result7[1]
-        )
-    
-    except:
-        st.write(completion1+"\n\n"+ completion2 + "\n\n" + completion3)
+    except Exception as e:
+        st.write("An error might occur. We know about the possibility of this bug occurring and we are working hard to ensure it does not in the near future !")

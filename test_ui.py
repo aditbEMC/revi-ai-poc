@@ -159,11 +159,7 @@ if st.button("Submit"):
         futures = [executor.submit(invoke_agent, text + submitted_text) for text in prompts]
         results = [future.result() for future in futures]
 
-    #response1, response2, response3 = results
     response1, response2 = results
-
-    #st.write(response1, response2, response3)
-    #st.write(response1, response2)
 
     completions = {}
 
@@ -197,6 +193,7 @@ if st.button("Submit"):
         result4 = result3[1].split('5. LEAD ATTENDS FIRST CLASS USING INTRO OFFER')
 
         st.write(
+            #completion1.split('1. MISSED FIRST CLASS')[0] + '1. MISSED FIRST CLASS' + "\n\n" +
             result1[0] + "\n\n" + "2. CLIENT COMPLETES LAST CREDIT OF ANY CLASS PACKAGE" + "\n\n" + 
             result2[0] + "\n\n" + "3. CLIENT COMPLETES SINGLE CLASS CREDIT" + "\n\n" + 
             result3[0] + "\n\n" + "4. FIRST CLASS REMINDER" + "\n\n" +
@@ -218,4 +215,4 @@ if st.button("Submit"):
         )
 
     except Exception as e:
-        st.write("An error might occur. We know about the possibility of this bug occurring and we are working hard to ensure it does not in the near future !")
+        st.write("An error mig. We know about the possibility of this bug occurring and we are working hard to ensure it does not occur in the near !")

@@ -10,42 +10,18 @@ os.environ['AWS_ACCESS_KEY_ID'] = st.secrets['AWS_ACCESS_KEY_ID']
 os.environ['AWS_SECRET_ACCESS_KEY'] = st.secrets['AWS_SECRET_ACCESS_KEY']
 os.environ['AWS_DEFAULT_REGION'] = st.secrets['AWS_DEFAULT_REGION']
 
-# Pre Prompts
-
-prePrompt15 = """
-
-    I want to generate detailed drip campaigns named below
-
-    1. MISSED FIRST CLASS
-    2. CLIENT COMPLETES LAST CREDIT OF ANY CLASS PACKAGE 
-    3. CLIENT COMPLETES SINGLE CLASS CREDIT
-    4. FIRST CLASS REMINDER
-    5. LEAD ATTENDS FIRST CLASS USING INTRO OFFER
-      
-    You are going to generate the campaigns based on the questionnaire provided below.
-
-    Here is the questionaire and its answers
-    
-    """
-
-prePrompt610 = """
-
-    I want to generate detailed drip campaigns named as below
-
-    6. LEAD CLAIMS INTRO OFFER
-    7. LEAD CONVERTS TO HIGHEST TIERED MEMBERSHIP
-    8. LEAD CREATED
-    9. LEAD CREATES TO LOWER OR MIDDLE TIER MEMBERSHIP
-    10. LEADS ATTENDS FIRST CLASS USING DROP IN CREDIT FLOW
-      
-    You are going to generate the campaigns based on the questionnaire provided below.
-
-    Here is the questionaire and its answers
-     
-    """
-
 #prompts = [prePrompt13, prePrompt46, prePrompt710]
-prompts = [prePrompt15, prePrompt610]
+campaigns = [
+    "1. MISSED FIRST CLASS", 
+    "2. CLIENT COMPLETES LAST CREDIT OF ANY CLASS PACKAGE",
+    "3. CLIENT COMPLETES SINGLE CLASS CREDIT",
+    "4. FIRST CLASS REMINDER",
+    "5. LEAD ATTENDS FIRST CLASS USING INTRO OFFER",
+    "6. LEAD CLAIMS INTRO OFFER",
+    "7. LEAD CONVERTS TO HIGHEST TIERED MEMBERSHIP",
+    "8. LEAD CREATED",
+    "9. LEAD CONVERTS TO LOWER OR MIDDLE TIER MEMBERSHIP",
+    "10. LEADS ATTENDS FIRST CLASS USING DROP IN CREDIT FLOW"]
 
 # Title of the app
 st.title("Business Questionnaire Form")
@@ -99,6 +75,9 @@ engagement_challenges = st.text_area("Are there any particular challenges you fa
 target_demographic = st.text_area("Who is your target demographic for new members?")
 campaign_goals = st.text_area("What is the main goal of your campaigns?")
 
+st.header("Which campaign do you want to generate")
+selected_campaign = st.selectbox("Select a campaign:", campaigns)
+
 if st.button("Submit"):
     
     # Create one big text with all submitted data
@@ -143,76 +122,40 @@ if st.button("Submit"):
     bedrock_runtime_client = boto3.client('bedrock-agent-runtime')
 
     # Specify the model ID and Alias ID you want to use
-    agent_id = st.secrets["AGENT_ID"]
-    agent_alias_id = st.secrets["AGENT_ALIAS_ID"]
+    agent_id = st.secrets.agentDetails["AGENT_ID"]
+    agent_alias_id = st.secrets.agentDetails["AGENT_ALIAS_ID"]
 
-    def invoke_agent(submitted_text):
-        response = bedrock_runtime_client.invoke_agent(
-            agentId=agent_id,
-            agentAliasId=agent_alias_id,
-            inputText=submitted_text,
-            sessionId=uuid.uuid4().hex
-        )
-        return response
+    drip_campaign = selected_campaign
+
+    prePrompt = f"""
+
+        I want to generate detailed drip campaign named below
+
+        {drip_campaign}
+        
+        You are going to generate the campaigns based on the questionnaire provided below.
+
+        Here is the questionaire and its answers
     
-    with ThreadPoolExecutor(max_workers=1) as executor:
-        futures = [executor.submit(invoke_agent, text + submitted_text) for text in prompts]
-        results = [future.result() for future in futures]
-
-    response1, response2 = results
-
-    completions = {}
+    """
 
     try:
 
-        def process_completion(response, completion_key):
-            completion_text = ""
-            for event in response.get("completion"):
-                chunk = event["chunk"]
-                completion_text += chunk["bytes"].decode()
-            completions[completion_key] = completion_text
-
-        # Create threads for each response
-        thread1 = threading.Thread(target=process_completion, args=(response1, 'completion1'))
-        thread2 = threading.Thread(target=process_completion, args=(response2, 'completion2'))
-
-        # start both threads simultaneously
-        thread1.start()
-        thread2.start()
-
-        # Wait for both threads to finish
-        thread1.join()
-        thread2.join()
-
-        completion1 = completions.get('completion1')
-        completion2 = completions.get('completion2')
-
-        result1 = completion1.split('2. CLIENT COMPLETES LAST CREDIT OF ANY CLASS PACKAGE')
-        result2 = result1[1].split('3. CLIENT COMPLETES SINGLE CLASS CREDIT')
-        result3 = result2[1].split('4. FIRST CLASS REMINDER')
-        result4 = result3[1].split('5. LEAD ATTENDS FIRST CLASS USING INTRO OFFER')
-
-        st.write(
-            #completion1.split('1. MISSED FIRST CLASS')[0] + '1. MISSED FIRST CLASS' + "\n\n" +
-            result1[0] + "\n\n" + "2. CLIENT COMPLETES LAST CREDIT OF ANY CLASS PACKAGE" + "\n\n" + 
-            result2[0] + "\n\n" + "3. CLIENT COMPLETES SINGLE CLASS CREDIT" + "\n\n" + 
-            result3[0] + "\n\n" + "4. FIRST CLASS REMINDER" + "\n\n" +
-            result4[0] + "\n\n" + "5. LEAD ATTENDS FIRST CLASS USING INTRO OFFER" + "\n\n" +
-            result4[1]
+        response = bedrock_runtime_client.invoke_agent(
+            agentId=agent_id,
+            agentAliasId=agent_alias_id,
+            inputText=prePrompt + submitted_text,
+            sessionId=uuid.uuid4().hex
         )
 
-        result5 = completion2.split('7. LEAD CONVERTS TO HIGHEST TIERED MEMBERSHIP')
-        result6 = result5[1].split('8. LEAD CREATED')
-        result7 = result6[1].split('9. LEAD CONVERTS TO LOWER OR MIDDLE TIER MEMBERSHIP')
-        result8 = result7[1].split('10. LEADS ATTENDS FIRST CLASS USING DROP IN CREDIT FLOW')
-
-        st.write(
-            result5[0] + "\n\n" + "7. LEAD CONVERTS TO HIGHEST TIERED MEMBERSHIP" + "\n\n" + 
-            result6[0] + "\n\n" + "8. LEAD CREATED" + "\n\n" + 
-            result7[0] + "\n\n" + "9. LEAD CONVERTS TO LOWER OR MIDDLE TIER MEMBERSHIP" + "\n\n" +
-            result8[0] + "\n\n" + "10. LEADS ATTENDS FIRST CLASS USING DROP IN CREDIT FLOW" + "\n\n" +
-            result8[1]
-        )
+        completion_text = ""
+        
+        for event in response.get("completion"):
+            chunk = event["chunk"]
+            completion_text += chunk["bytes"].decode()
+        
+        st.write(completion_text + "\n\n")
 
     except Exception as e:
-        st.write("An error mig. We know about the possibility of this bug occurring and we are working hard to ensure it does not occur in the near !")
+        st.write("A Bug occured. We know about this and are solving it in the backend")
+        st.write(e)

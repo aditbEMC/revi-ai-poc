@@ -29,7 +29,7 @@ st.title("Business Questionnaire Form")
 # Business Profile Section
 st.header("1. Business Profile")
 
-name = st.text_input("What is your name")
+name = st.text_input("What is your name?")
 business_name = st.text_input("What is the name of your business?")
 crm_used = st.text_input("Which CRM does your business currently use?")
 business_location = st.text_input("What is your business location?")
@@ -43,38 +43,27 @@ st.header("2. Memberships, Offers & Services")
 
 membership_plans = st.text_area("What are the details of your membership plans?")
 introductory_offers = st.text_area("Do you have any introductory offers for new members?")
-seasonal_offerings = st.text_area("Are there any seasonal or promotional offerings you’d like to highlight?")
 incentive_discounts = st.text_area("What incentive discounts do you offer to attract new members or retain existing ones?")
 additional_classes = st.text_area("Do you offer any additional classes or programs?")
 services_offered = st.text_area("What types of services and offerings does your business provide?")
 
-# Customer Journey Section
-st.header("3. Customer Journey")
-
-member_locations = st.text_area("Where are the majority of your current members located?")
-customer_lifecycle = st.text_area("What is the typical customer lifecycle for your business?")
-key_milestones = st.text_area("What are the key milestones in your customer journey that you’d like to focus on?")
-
 # Campaigns & Engagement Styles Section
-st.header("4. Campaigns & Engagement Styles")
+st.header("3. Campaigns & Engagement Styles")
 
-communication_tone = st.selectbox("What is your preferred tone of communication?", ["Friendly and casual", "Professional and motivational", "Other"])
+communication_tone = st.selectbox(
+    "What is your preferred tone of communication?",
+    ["Friendly and casual", "Professional and motivational", "Other"]
+)
 brand_slogan = st.text_input("Do you have any preference as a slogan or phrases for your brand?")
-campaign_frequency = st.text_input("How often would you like to send campaigns to customers?")
 example_campaigns = st.text_area("Do you have any example campaigns that worked well previously? If yes, share the details.")
-engage_inactive_customers = st.radio("Do you want campaigns to engage inactive customers?", ("Yes", "No"))
-inactivity_days = st.number_input("If yes, after how many days of inactivity should we trigger a message?", min_value=0, step=1)
 sms_focus_areas = st.text_area("Are there any specific areas you want to focus on or avoid in our SMS messaging?")
 additional_info = st.text_area("Is there anything else you would like to share about your business that might help in customizing your SMS flows?")
-include_links = st.radio("Do you want to include links to your website, app, or booking platform in messages?", ("Yes", "No"))
 
 # Challenges & Targets Section
-st.header("5. Challenges & Targets")
+st.header("4. Challenges & Targets")
 
 engagement_challenges = st.text_area("Are there any particular challenges you face in engaging leads or retaining members?")
 target_demographic = st.text_area("Who is your target demographic for new members?")
-campaign_goals = st.text_area("What is the main goal of your campaigns?")
-
 st.header("Which campaign do you want to generate")
 selected_campaign = st.selectbox("Select a campaign:", campaigns)
 
@@ -95,28 +84,18 @@ if st.button("Submit"):
         "2. Memberships, Offers & Services \n"
         f"**Membership Plans:** {membership_plans}\n"
         f"**Introductory Offers:** {introductory_offers}\n"
-        f"**Seasonal Offerings:** {seasonal_offerings}\n"
         f"**Incentive Discounts:** {incentive_discounts}\n"
         f"**Additional Classes/Programs:** {additional_classes}\n"
         f"**Services & Offerings:** {services_offered}\n\n"
-        "3. Customer Journey\n"
-        f"**Member Locations:** {member_locations}\n"
-        f"**Customer Lifecycle:** {customer_lifecycle}\n"
-        f"**Key Milestones:** {key_milestones}\n\n"
-        "4. Campaigns & Engagement Styles\n"
+        "3. Campaigns & Engagement Styles\n"
         f"**Preferred Tone:** {communication_tone}\n"
         f"**Brand Slogan:** {brand_slogan}\n"
-        f"**Campaign Frequency:** {campaign_frequency}\n"
         f"**Example Campaigns:** {example_campaigns}\n"
-        f"**Engage Inactive Customers:** {engage_inactive_customers}\n"
-        f"**Inactivity Days:** {inactivity_days}\n"
         f"**SMS Focus Areas:** {sms_focus_areas}\n"
-        f"**Additional Info:** {additional_info}\n"
-        f"**Include Links:** {include_links}\n\n"
-        "5. Challenges & Targets \n"
+        f"**Additional Info:** {additional_info}\n\n"
+        "4. Challenges & Targets \n"
         f"**Engagement Challenges:** {engagement_challenges}\n"
-        f"**Target Demographic:** {target_demographic}\n"
-        f"**Campaign Goals:** {campaign_goals}"
+        f"**Target Demographic:** {target_demographic}\n\n"
     )
 
     bedrock_runtime_client = boto3.client('bedrock-agent-runtime')
